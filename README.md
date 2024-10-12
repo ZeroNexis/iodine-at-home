@@ -23,11 +23,46 @@ _✨ 开源的文件分发主控，并尝试兼容 OpenBMCLAPI 客户端 ✨_
 
 ## 📖 介绍
 
-基于 [FastAPI](https://fastapi.tiangolo.com/) 和 [Socket.IO](https://socket.io/) 的 Python 文件分发主控，建立目的为复刻 OpenBMCLAPI 主控。
+基于 [aiohttp](https://docs.aiohttp.org/) 和 [Socket.IO](https://socket.io/) 的 Python 文件分发主控。
 
-## 📚 文档
+## 🎉 运行
 
-## 📄 许可证
+```shell
+# 安装环境
+pip install -r requirements.txt
+ 
+# 运行主程序
+python .\main.py
+```
+
+### 测试结果
+基本完成，似乎能用？
+
+## ⚙️ 配置
+
+运行一次后，在`settings`目录下的的`.env`文件中添加下面的相关配置（请自行更改）
+
+```
+# 主配置
+HOST = '0.0.0.0'
+PORT = 8080
+USERAGENT = 'iodine-ctrl/$version'
+ACCESS_LOG = true
+
+# 机密配置，请勿外传！！！
+TOKEN = '123456'
+JWT_SECRET = '114514'
+
+# 证书配置
+CERTIFICATES = false
+CERT_PATH = './certificates/cert.pem'
+KEY_PATH = './certificates/key.pem'
+
+# 文件配置（使用英文逗号进行分隔）
+GIT_REPOSITORY_LIST = "https://github.com/Mxmilu666/bangbang93HUB"
+```
+
+## 📖 许可证
 本项目采用 `MIT License` 协议开源
 
 ## 💡 特别鸣谢
