@@ -1,6 +1,10 @@
+# 第三方库
 import io
 import heapq
+from random import choices
 from typing import Optional
+
+# 本地库
 from core.mdb import cdb
 
 
@@ -88,21 +92,32 @@ class Cluster:
 
 class OCLManager:
     def __init__(self):
-        self.list = []
+        self.id_list = []
+        self.weight_list = []
 
     def __len__(self):
-        return len(self.list)
+        return len(self.id_list)
 
-    def append(self, cluster_id: str):
-        if cluster_id not in self.list:
-            self.list.append(cluster_id)
+    def append(self, cluster_id: str, weight: float):
+        if cluster_id not in self.id_list:
+            self.id_list.append(cluster_id)
+            self.weight_list.append(weight)
 
     def remove(self, cluster_id: str):
-        if cluster_id in self.list:
-            self.list.remove(cluster_id)
+        if cluster_id in self.id_list:
+            self.weight_list.remove(self.weight_list[self.id_list.index(cluster_id)])
+            self.id_list.remove(cluster_id)
+
+    def update(self, cluster_id: str, weight: float):
+        if cluster_id in self.id_list:
+            self.weight_list[self.id_list.index(cluster_id)] = weight
 
     def include(self, cluster_id: str):
-        return cluster_id in self.list
+        return cluster_id in self.id_list
+    
+    def random(self) -> str:
+        return choices(self.id_list, self.weight_list)[0]
+
 
 
 oclm = OCLManager()

@@ -5,15 +5,18 @@ import hashlib
 from fastapi import APIRouter, Request, HTTPException, Response
 from fastapi.responses import JSONResponse, PlainTextResponse
 
-router = APIRouter()
-
 # 本地库
 import core.utils as utils
 import core.const as const
 from core.types import Cluster
 
 
-@router.get("/challenge", summary="颁发 challenge 码", tags=["nodes"])  # 颁发 challenge 验证码
+router = APIRouter()
+
+
+@router.get(
+    "/challenge", summary="颁发 challenge 码", tags=["nodes"]
+)  # 颁发 challenge 验证码
 async def get_challenge(response: Response, clusterId: str | None = ""):
     cluster = Cluster(clusterId)
     if await cluster.initialize():
@@ -21,7 +24,6 @@ async def get_challenge(response: Response, clusterId: str | None = ""):
             "challenge": utils.encode_jwt(
                 {
                     "cluster_id": clusterId,
-                    "cluster_secret": cluster.secret,
                     "iss": const.jwt_iss,
                     "exp": int(time.time()) + 1000 * 60 * 5,
                 }

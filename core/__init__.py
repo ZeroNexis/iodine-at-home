@@ -195,7 +195,6 @@ async def on_cluster_request_cert(sid, *args):
 ## 节点启动时
 @sio.on("enable")
 async def on_cluster_enable(sid, data: dict, *args):
-    # {'host': '127.0.0.1', 'port': 11451, 'version': '1.11.0', 'byoc': True, 'noFastEnable': True, 'flavor': {'runtime': 'python/3.12.2 python-openbmclapi/2.1.1', 'storage': 'file'}}
     session = await sio.get_session(sid)
     cluster = Cluster(str(session["cluster_id"]))
     cluster_is_exist = await cluster.initialize()
@@ -203,6 +202,7 @@ async def on_cluster_enable(sid, data: dict, *args):
         return [{"message": "错误: 节点似乎并不存在，请检查配置文件"}]
     if oclm.include(cluster.id):
         return [{"message": "错误: 节点已经在线，请检查配置文件"}]
+    logger.debug(f"节点 {cluster.id} 请求启用")
     host = data.get("host", data.get("ip"))
     byoc = data.get("byoc", False)
     if byoc == False:
@@ -214,9 +214,9 @@ async def on_cluster_enable(sid, data: dict, *args):
             else:
                 cf_id = None
         if cf_id == None:
-            await cf_client.create_record(cluster.id, "A", data.get("host", data.get("ip")))
+            await cf_client.create_record(cluster.id, "A", host)
         else:
-            await cf_client.update_record(id, cluster.id, "A", data.get("host", data.get("ip")))
+            await cf_client.update_record(cf_id, cluster.id, "A", host)
         host = f"{cluster.id}.{config.get('cluster-certificate.domain')}"
 
     await cluster.edit(
@@ -237,8 +237,8 @@ async def on_cluster_enable(sid, data: dict, *args):
         await cluster.edit(measureBandwidth=int(bandwidth[1]))
         if cluster.trust < 0:
             await sio.emit("message", "节点信任度过低，请保持稳定在线。", sid)
-        oclm.append(cluster.id)
-        logger.debug(f"节点 {cluster.id} 上线: 测量带宽 = {bandwidth[1]}Mbps")
+        oclm.append(cluster.id, cluster.weight)
+        logger.debug(f"节点 {cluster.id} 启用: 测量带宽 = {bandwidth[1]}Mbps")
         return [None, True]
     elif bandwidth[0] and bandwidth[1] < 10:
         logger.debug(f"{cluster.id} 测速不合格: {bandwidth[1]}Mbps")
@@ -259,6 +259,7 @@ async def on_cluster_keep_alive(sid, data, *args):
     cluster_is_exist = await cluster.initialize()
     if cluster_is_exist == False or oclm.include(cluster.id) == False:
         return [None, False]
+    oclm.update(cluster.id, cluster.weight)
     logger.debug(
         f"节点 {cluster.id} 保活成功: 次数 = {data["hits"]}, 数据量 = {utils.hum_convert(data['bytes'])}"
     )

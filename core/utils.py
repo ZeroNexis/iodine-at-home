@@ -83,7 +83,7 @@ async def measure_cluster(size: int, cluster: Cluster):
     try:
         start_time = time.time()
         async with httpx.AsyncClient() as client:
-            response = await client.get(url, headers={"User-Agent": const.user_agent})
+            response = await client.get(url, headers={"User-Agent": const.user_agent}, timeout=10)
         end_time = time.time()
         elapsed_time = end_time - start_time
         # 计算测速时间

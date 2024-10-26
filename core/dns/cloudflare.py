@@ -96,7 +96,15 @@ class CloudFlareAPI:
     ):
         async with httpx.AsyncClient() as client:
             data = await client.patch(
-                f"https://api.cloudflare.com/client/v4/zones/{self.zone_id}/dns_records/{record_id}"
+                f"https://api.cloudflare.com/client/v4/zones/{self.zone_id}/dns_records/{record_id}",
+                headers=self.headers,
+                json={
+                    "type": type,
+                    "name": name,
+                    "content": content,
+                    "ttl": ttl,
+                    "proxied": proxied,
+                }
             )
         if data.status_code == 200:
             return data.json()
