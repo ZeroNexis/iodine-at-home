@@ -38,7 +38,7 @@ from core.routes.api.v0 import router as api_v0_router
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_filelist()
-    logger.info(filesdb.url_list)
+    logger.success(f"成功初始化文件列表，文件数量: {len(filesdb)}个")
     logger.info(f"正在 {config.get('host')}:{config.get('port')} 上监听服务器...")
     yield
     logger.success("主控退出成功。")

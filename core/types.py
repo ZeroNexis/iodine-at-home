@@ -129,6 +129,9 @@ class FilesDB:
         self.mtime_list = []
         self.url_list = []
 
+    def __len__(self):
+        return len(self.hash_list)
+
     def append(self, hash: str, size: int, mtime: int, url: str):
         if hash not in self.hash_list:
             self.hash_list.append(hash)
