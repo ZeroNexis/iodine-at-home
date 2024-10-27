@@ -1,4 +1,5 @@
 # 第三方库
+import os
 import jwt
 import time
 import httpx
@@ -83,7 +84,9 @@ async def measure_cluster(size: int, cluster: Cluster):
     try:
         start_time = time.time()
         async with httpx.AsyncClient() as client:
-            response = await client.get(url, headers={"User-Agent": const.user_agent}, timeout=10)
+            response = await client.get(
+                url, headers={"User-Agent": const.user_agent}, timeout=10
+            )
         end_time = time.time()
         elapsed_time = end_time - start_time
         # 计算测速时间
@@ -91,3 +94,32 @@ async def measure_cluster(size: int, cluster: Cluster):
         return [True, bandwidth]
     except Exception as e:
         return [False, e]
+
+
+# 遍历指定目录及其子目录中的所有文件
+def scan_files(directory):
+    result = []
+    for root, dirs, files in os.walk(directory):
+        dirs[:] = [d for d in dirs if not d.startswith('.')]
+        for file in files:
+            if not file.startswith('.'):
+            # 打印文件的完整路径
+                path = str(os.path.join(root, file))
+                result.append(path.replace("\\", "/"))
+    return result
+
+
+def get_file_mtime(file_path):
+    return int(os.path.getmtime(file_path))
+
+
+def get_file_size(file_path):
+    return os.path.getsize(file_path)
+
+
+def get_file_hash(file_path):
+    sha1_hash = hashlib.sha1()
+    with open(file_path, "rb") as f:
+        for byte_block in iter(lambda: f.read(4096), b""):
+            sha1_hash.update(byte_block)
+    return sha1_hash.hexdigest()

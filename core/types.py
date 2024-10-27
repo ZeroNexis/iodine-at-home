@@ -50,7 +50,7 @@ class Cluster:
         runtime: str = None,
         cert_fullchain: str = None,
         cert_privkey: str = None,
-        cert_expiry: str = None
+        cert_expiry: str = None,
     ):
         result = await cdb.edit_cluster(
             self.id,
@@ -67,7 +67,7 @@ class Cluster:
             runtime,
             cert_fullchain,
             cert_privkey,
-            cert_expiry
+            cert_expiry,
         )
         if result:
             await self.initialize()
@@ -114,13 +114,61 @@ class OCLManager:
 
     def include(self, cluster_id: str):
         return cluster_id in self.id_list
-    
+
     def random(self) -> str:
         return choices(self.id_list, self.weight_list)[0]
 
 
-
 oclm = OCLManager()
+
+
+class FilesDB:
+    def __init__(self):
+        self.hash_list = []
+        self.size_list = []
+        self.mtime_list = []
+        self.url_list = []
+
+    def append(self, hash: str, size: int, mtime: int, url: str):
+        if hash not in self.hash_list:
+            self.hash_list.append(hash)
+            self.size_list.append(size)
+            self.mtime_list.append(mtime)
+            self.url_list.append(url)
+
+    def remove(self, hash: str):
+        if hash in self.hash_list:
+            self.size_list.remove(self.size_list[self.hash_list.index(hash)])
+            self.mtime_list.remove(self.mtime_list[self.hash_list.index(hash)])
+            self.url_list.remove(self.url_list[self.hash_list.index(hash)])
+            self.hash_list.remove(hash)
+
+    def find(self, hash: str | None = None, url: str | None = None):
+        if hash is not None:
+            if hash in self.hash_list:
+                return {
+                    "hash": hash,
+                    "size": self.size_list[self.hash_list.index(hash)],
+                    "mtime": self.mtime_list[self.hash_list.index(hash)],
+                    "url": self.url_list[self.hash_list.index(hash)],
+                }
+            else:
+                return None
+        elif url is not None:
+            if url in self.url_list:
+                return {
+                    "hash": self.hash_list[self.url_list.index(url)],
+                    "size": self.size_list[self.url_list.index(url)],
+                    "mtime": self.mtime_list[self.url_list.index(url)],
+                    "url": url,
+                }
+            else:
+                return None
+        else:
+            return None
+
+
+filesdb = FilesDB()
 
 
 # 本段修改自 TTB-Network/python-openbmclapi 中部分代码

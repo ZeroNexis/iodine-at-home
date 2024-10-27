@@ -163,6 +163,7 @@ cython_debug/
 
 # iodine-at-home
 config.yml
+logs/
 data/
 files/
 plugins/

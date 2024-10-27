@@ -6,27 +6,25 @@ from fastapi.responses import FileResponse, RedirectResponse
 
 # 本地库
 import core.utils as utils
-from core.types import oclm, Cluster
+from core.types import oclm, Cluster, filesdb
 from core.logger import logger
-from core.filesdb import FilesDB
 
 router = APIRouter()
 
 
-@router.get("/files/{path}", summary="通过 PATH 下载普通文件", tags=["public"])
-async def download_path_file(hash: str):
-    async with FilesDB() as filesdb:
-        filedata = await filesdb.find_one("PATH", hash)
+@router.get("/files/{path:path}", summary="通过 PATH 下载普通文件", tags=["public"])
+async def download_path_file(path: str):
+    filedata = filesdb.find(None, f"files/{path}")
 
     if filedata:
         if len(oclm) == 0:
-            return RedirectResponse(filedata["URL"], 302)
+            return FileResponse(Path(f"./{filedata['url']}"))
         else:
             cluster = Cluster(oclm.random())
             await cluster.initialize()
-            sign = utils.get_sign(filedata["HASH"], cluster.secret)
+            sign = utils.get_sign(filedata['hash'], cluster.secret)
             url = utils.get_url(
-                cluster.host, cluster.port, f"/download/{filedata['HASH']}", sign
+                cluster.host, cluster.port, f"/download/{filedata['hash']}", sign
             )
             return RedirectResponse(url, 302)
     else:

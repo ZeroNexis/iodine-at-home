@@ -1,15 +1,43 @@
-import pytz
-from datetime import datetime, timedelta
-from dateutil.relativedelta import relativedelta
+import tqdm
 
-# 获取当前时间
-current_time = datetime.now(pytz.utc)
+class FilesDB:
+    def __init__(self):
+        self.hash_list = []
+        self.size_list = []
+        self.mtime_list = []
+        self.url_list = []
 
-# 加上三个月的时间
-future_time = current_time + relativedelta(months=3)
+    def append(self, hash: str, size: int, mtime: int, url: str):
+        if hash not in self.hash_list:
+            self.hash_list.append(hash)
+            self.size_list.append(size)
+            self.mtime_list.append(mtime)
+            self.url_list.append(url)
 
-# 将时间转换为指定格式的字符串
-formatted_time = future_time.astimezone(pytz.utc).strftime('%Y-%m-%dT%H:%M:%S+00:00')
+    def remove(self, hash: str):
+        if hash in self.hash_list:
+            self.size_list.remove(self.size_list[self.hash_list.index(hash)])
+            self.mtime_list.remove(self.mtime_list[self.hash_list.index(hash)])
+            self.url_list.remove(self.url_list[self.hash_list.index(hash)])
+            self.hash_list.remove(hash)
 
-# 输出结果
-print(formatted_time)
+    def find(self, hash: str | None = None, url: str | None = None):
+        if hash is not None:
+            if hash in self.hash_list:
+                return hash, self.size_list[self.hash_list.index(hash)], self.mtime_list[self.hash_list.index(hash)], self.url_list[self.hash_list.index(hash)],
+            else:
+                return None, None, None, None
+        elif url is not None:
+            if url in self.url_list:
+                return self.size_list[self.url_list.index(url)], self.mtime_list[self.url_list.index(url)], self.hash_list[self.url_list.index(url)], url
+            else:
+                return None, None, None, None
+        else:
+            return None, None, None, None
+        
+filesdb = FilesDB()
+
+for i in tqdm.tqdm(range(1000)):
+    filesdb.append(f"hash{i}", i, i, f"url{i}")
+
+print(filesdb.find(url="url500"))

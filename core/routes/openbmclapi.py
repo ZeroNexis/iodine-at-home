@@ -5,9 +5,8 @@ from fastapi import APIRouter, Request, HTTPException, Response
 from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse
 
 # 本地库
-from core.types import Avro
 from core.logger import logger
-from core.filesdb import FilesDB
+from core.types import Avro, filesdb
 
 
 router = APIRouter()
@@ -21,15 +20,13 @@ def get_configuration(response: Response):
 
 @router.get("/files", summary="文件列表", tags=["nodes"])
 async def get_filesList():
-    async with FilesDB() as filesdb:
-        filelist = await filesdb.get_all()
     avro = Avro()
-    avro.writeVarInt(len(filelist))  # 写入文件数量
-    for file in filelist:
-        avro.writeString(f"/{file['SOURCE']}/{file['HASH']}")  # 路径
-        avro.writeString(file['HASH'])  # 哈希
-        avro.writeVarInt(file['SIZE'])  # 文件大小
-        avro.writeVarInt(file['MTIME'])  # 修改时间
+    avro.writeVarInt(len(filesdb.hash_list))  # 写入文件数量
+    for i in range(len(filesdb.hash_list)):
+        avro.writeString(f"/{filesdb.url_list[i]}")  # 路径
+        avro.writeString(filesdb.hash_list[i])  # 哈希
+        avro.writeVarInt(filesdb.size_list[i])  # 文件大小
+        avro.writeVarInt(filesdb.mtime_list[i])  # 修改时间
     avro.write(b"\x00")
     result = pyzstd.compress(avro.io.getvalue())
     avro.io.close()
@@ -38,7 +35,11 @@ async def get_filesList():
 
 @router.get("/download/{hash}", summary="应急同步", tags=["nodes"])
 async def download_file_from_ctrl(hash: str):
-    raise HTTPException(404, detail="未找到该文件")
+    filedata = await filesdb.find(hash)
+    if filedata:
+        return FileResponse(f"./{filedata['PATH']}")
+    else:
+        raise HTTPException(404, detail="未找到该文件")
 
 
 @router.post("/report", summary="上报异常", tags=["nodes"])

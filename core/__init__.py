@@ -5,6 +5,7 @@ import pytz
 import asyncio
 import uvicorn
 import importlib
+from pathlib import Path
 from pluginbase import PluginBase
 from fastapi import FastAPI, Response
 from datetime import datetime, timezone
@@ -23,8 +24,7 @@ import core.const as const
 import core.utils as utils
 from core.logger import logger
 from core.config import config
-from core.types import Cluster, oclm
-from core.filesdb import FilesDB
+from core.types import Cluster, oclm, filesdb
 from core.dns.cloudflare import cf_client
 
 # 路由库
@@ -33,16 +33,16 @@ from core.routes.openbmclapi import router as openbmclapi_router
 from core.routes.services import router as services_router
 from core.routes.api.v0 import router as api_v0_router
 
+
 # 网页部分
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info(
-        f"正在 {config.get('host')}:{config.get('port')} 上监听服务器..."
-    )
+    init_filelist()
+    logger.info(filesdb.url_list)
+    logger.info(f"正在 {config.get('host')}:{config.get('port')} 上监听服务器...")
     yield
-    async with FilesDB() as db:
-        await db.close()
     logger.success("主控退出成功。")
+
 
 app = FastAPI(
     title="iodine@home",
@@ -52,7 +52,7 @@ app = FastAPI(
         "name": "The MIT License",
         "url": "https://raw.githubusercontent.com/ZeroNexis/iodine-at-home/main/LICENSE",
     },
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 app.include_router(agent_router, prefix="/openbmclapi-agent")
@@ -69,6 +69,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 # 插件部分
 async def load_plugins():
     global app
@@ -81,7 +82,9 @@ async def load_plugins():
         if hasattr(plugin, "__API__") and plugin.__API__:
             if hasattr(plugin, "router"):
                 app.include_router(plugin.router, prefix=f"/{plugin.__NAMESPACE__}")
-                logger.success(f"已注册插件 API 路由：{plugin.__NAMESPACE__}, {plugin.router.routes}")
+                logger.success(
+                    f"已注册插件 API 路由：{plugin.__NAMESPACE__}, {plugin.router.routes}"
+                )
             else:
                 logger.warning(
                     f"插件「{plugin.__NAME__}」未定义 Router ，无法加载该插件的路径！"
@@ -93,20 +96,22 @@ async def load_plugins():
 sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins="*")
 socket = ASGIApp(sio)
 
+
 # 核心功能
 @app.middleware("http")
-async def _(request,call_next):
+async def _(request, call_next):
     start_time = datetime.now()
     response = await call_next(request)
     process_time = (datetime.now() - start_time).total_seconds()
-    response_size = len(response.body) if hasattr(response, 'body') else 0
-    referer = request.headers.get('Referer')
-    user_agent = request.headers.get('user-agent', '-')
+    response_size = len(response.body) if hasattr(response, "body") else 0
+    referer = request.headers.get("Referer")
+    user_agent = request.headers.get("user-agent", "-")
     logger.info(
         f"Serve {response.status_code} | {process_time:.2f}s | {response_size}B | "
-        f"{request.client.host} | {request.method} | {request.url.path} | \"{user_agent}\" | \"{referer}\""
+        f'{request.client.host} | {request.method} | {request.url.path} | "{user_agent}" | "{referer}"'
     )
     return response
+
 
 ## 节点端连接时
 @sio.on("connect")
@@ -162,35 +167,50 @@ async def on_cluster_request_cert(sid, *args):
     if cluster_is_exist == False:
         return [{"message": "错误: 节点似乎并不存在，请检查配置文件"}]
     logger.debug(f"节点 {cluster.id} 请求证书")
-    if cluster.cert_fullchain != "" and cluster.cert_privkey != "" and cluster.cert_expiry != "" and cluster.cert_expiry > datetime.now(pytz.utc).strftime('%Y-%m-%dT%H:%M:%S+00:00'):
+    if (
+        cluster.cert_fullchain != ""
+        and cluster.cert_privkey != ""
+        and cluster.cert_expiry != ""
+        and cluster.cert_expiry
+        > datetime.now(pytz.utc).strftime("%Y-%m-%dT%H:%M:%S+00:00")
+    ):
         return [
-            None, {
+            None,
+            {
                 "_id": cluster.id,
                 "clusterId": cluster.id,
                 "cert": cluster.cert_fullchain,
                 "key": cluster.cert_privkey,
                 "expires": cluster.cert_expiry,
-                "__v": 0
-            }
+                "__v": 0,
+            },
         ]
     else:
-        cert, key = await cf_client.get_certificate(f"{cluster.id}.{config.get('cluster-certificate.domain')}")
+        cert, key = await cf_client.get_certificate(
+            f"{cluster.id}.{config.get('cluster-certificate.domain')}"
+        )
         if cert == None or key == None:
             return [{"message": "错误: 证书获取失败，请重新尝试。"}]
         current_time = datetime.now(pytz.utc)
         future_time = current_time + relativedelta(months=3)
-        formatted_time = future_time.astimezone(pytz.utc).strftime('%Y-%m-%dT%H:%M:%S+00:00')
-        await cluster.edit(cert_fullchain=cert, cert_privkey=key, cert_expiry=formatted_time)
+        formatted_time = future_time.astimezone(pytz.utc).strftime(
+            "%Y-%m-%dT%H:%M:%S+00:00"
+        )
+        await cluster.edit(
+            cert_fullchain=cert, cert_privkey=key, cert_expiry=formatted_time
+        )
         return [
-            None, {
+            None,
+            {
                 "_id": cluster.id,
                 "clusterId": cluster.id,
                 "cert": cluster.cert_fullchain,
                 "key": cluster.cert_privkey,
                 "expires": cluster.cert_expiry,
-                "__v": 0
-            }
+                "__v": 0,
+            },
         ]
+
 
 ## 节点启动时
 @sio.on("enable")
@@ -250,7 +270,8 @@ async def on_cluster_enable(sid, data: dict, *args):
     else:
         logger.debug(f"{cluster.id} 测速失败: {bandwidth[1]}")
         return [{"message": f"错误: {bandwidth[1]}"}]
-    
+
+
 ## 节点保活时
 @sio.on("keep-alive")
 async def on_cluster_keep_alive(sid, data, *args):
@@ -264,6 +285,7 @@ async def on_cluster_keep_alive(sid, data, *args):
         f"节点 {cluster.id} 保活成功: 次数 = {data["hits"]}, 数据量 = {utils.hum_convert(data['bytes'])}"
     )
     return [None, datetime.now(timezone.utc).isoformat()]
+
 
 @sio.on("disable")  ## 节点禁用时
 async def on_cluster_disable(sid, *args):
@@ -280,12 +302,29 @@ async def on_cluster_disable(sid, *args):
             logger.debug(f"节点 {cluster.id} 尝试禁用集群失败: 节点没有启用")
     return [None, True]
 
+
+def init_filelist():
+    filelist = utils.scan_files(Path("./files/"))
+    for file in filelist:
+        hash = utils.get_file_hash(f"./{file}")
+        size = utils.get_file_size(f"./{file}")
+        mtime = utils.get_file_mtime(f"./{file}")
+        filesdb.append(hash=hash, url=f"{file}", size=size, mtime=mtime)
+
+
 def init():
+    Path("./files/").mkdir(exist_ok=True)
     logger.clear()
     logger.info("加载中……")
     try:
         asyncio.run(load_plugins())
         app.mount("/", socket)
-        uvicorn.run(app, host=config.get('host'), port=config.get(path='port'), log_level='warning', access_log=False)
+        uvicorn.run(
+            app,
+            host=config.get("host"),
+            port=config.get(path="port"),
+            log_level="warning",
+            access_log=False,
+        )
     except Exception as e:
         logger.error(e)
