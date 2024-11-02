@@ -108,6 +108,10 @@ class OCLManager:
             self.weight_list.remove(self.weight_list[self.id_list.index(cluster_id)])
             self.id_list.remove(cluster_id)
 
+    def shutdown(self):
+        self.id_list = []
+        self.weight_list = []
+
     def update(self, cluster_id: str, weight: float):
         if cluster_id in self.id_list:
             self.weight_list[self.id_list.index(cluster_id)] = weight

@@ -88,9 +88,9 @@ async def load_plugins():
                         )
                 else:
                     logger.warning(
-                        f"插件「{plugin.__NAME__}」未定义 Router ，无法加载该插件的路径！"
+                        f"插件 [{plugin.__plugin_meta__.name}] 未定义 Router ，无法加载该插件的路径！"
                     )
-            logger.success(f"插件「{plugin.__plugin_meta__.name}」加载完成！")
+            logger.success(f"插件 [{plugin.__plugin_meta__.name}] 加载完成！")
             await plugin.init()
 
 
@@ -324,7 +324,7 @@ def init():
         app.mount("/", socket)
         uvicorn.run(
             app,
-            host=config.get("host"),
+            host=config.get(path="host"),
             port=config.get(path="port"),
             log_level="warning",
             access_log=False,

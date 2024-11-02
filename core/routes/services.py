@@ -18,7 +18,10 @@ async def download_path_file(path: str):
 
     if filedata:
         if len(oclm) == 0:
-            return FileResponse(Path(f"./{filedata['url']}"))
+            try:
+                return FileResponse(Path(f"./{filedata['url']}"))
+            except:
+                raise HTTPException(418, detail="418 I'm a teapot.")
         else:
             cluster = Cluster(oclm.random())
             await cluster.initialize()

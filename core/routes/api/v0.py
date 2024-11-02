@@ -45,7 +45,7 @@ async def get_rank_data():
         else:
             data["isEnabled"] = False
         rdata = {
-            k: v for k, v in data.items() if k in ["_id", "name", "isEnabled", "isBanned"]
+            k: v for k, v in data.items() if k in ["_id", "name", "isEnabled", "isBanned", "version"]
         }
         result.append(rdata)
     return result
