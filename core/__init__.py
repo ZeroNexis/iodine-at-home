@@ -156,6 +156,7 @@ async def on_disconnect(sid, *args):
     if cluster_is_exist and oclm.include(cluster.id):
         oclm.remove(cluster.id)
         logger.debug(f"节点 {cluster.id}（SID = {sid}）异常断开连接，强制禁用")
+        await cluster.edit(trust=cluster.trust - 50)
     else:
         logger.debug(f"客户端 {sid} 断开了连接")
 
