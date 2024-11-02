@@ -326,3 +326,13 @@ class WRRScheduler:
 
 
 wrrs = WRRScheduler()
+
+
+class PluginMetadata:
+    def __init__(self, name: str, description: str, version: str, author: str, route: bool, route_prefix: str):
+        self.name = name
+        self.description = description
+        self.version = version
+        self.author = author
+        self.route = route
+        self.route_prefix = route_prefix

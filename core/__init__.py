@@ -24,8 +24,8 @@ import core.const as const
 import core.utils as utils
 from core.logger import logger
 from core.config import config
-from core.types import Cluster, oclm, filesdb
 from core.dns.cloudflare import cf_client
+from core.types import Cluster, PluginMetadata, oclm, filesdb
 
 # 路由库
 from core.routes.agent import router as agent_router
@@ -78,18 +78,20 @@ async def load_plugins():
     for plugin_name in plugin_source.list_plugins():
         logger.info(f"插件 {plugin_name} 加载中...")
         plugin = importlib.import_module("plugins." + plugin_name)
-        logger.info(f"插件「{plugin.__NAME__}」加载成功！")
-        if hasattr(plugin, "__API__") and plugin.__API__:
-            if hasattr(plugin, "router"):
-                app.include_router(plugin.router, prefix=f"/{plugin.__NAMESPACE__}")
-                logger.success(
-                    f"已注册插件 API 路由：{plugin.__NAMESPACE__}, {plugin.router.routes}"
-                )
-            else:
-                logger.warning(
-                    f"插件「{plugin.__NAME__}」未定义 Router ，无法加载该插件的路径！"
-                )
-        await plugin.init()
+        if hasattr(plugin, "__plugin_meta__"):
+            if isinstance(plugin.__plugin_meta__, PluginMetadata):
+                if plugin.__plugin_meta__.route == True:
+                    if hasattr(plugin, "router"):
+                        app.include_router(
+                            plugin.router,
+                            prefix=f"/{plugin.__plugin_meta__.route_prefix}",
+                        )
+                else:
+                    logger.warning(
+                        f"插件「{plugin.__NAME__}」未定义 Router ，无法加载该插件的路径！"
+                    )
+            logger.success(f"插件「{plugin.__plugin_meta__.name}」加载完成！")
+            await plugin.init()
 
 
 # SocketIO 部分
@@ -142,7 +144,7 @@ async def on_connect(sid, *args):
         )
     else:
         sio.disconnect(sid)
-        logger.debug(f"节点 {sid} 连接失败: 认证出错")
+        logger.debug(f"客户端 {sid} 连接失败: 认证出错")
 
 
 ## 当节点端退出连接时
@@ -153,9 +155,9 @@ async def on_disconnect(sid, *args):
     cluster_is_exist = await cluster.initialize()
     if cluster_is_exist and oclm.include(cluster.id):
         oclm.remove(cluster.id)
-        logger.debug(f"{sid} 异常断开连接，已从在线列表中删除")
+        logger.debug(f"节点 {cluster.id}（SID = {sid}）异常断开连接，强制禁用")
     else:
-        logger.debug(f"节点 {sid} 断开了连接")
+        logger.debug(f"客户端 {sid} 断开了连接")
 
 
 ## 节点请求证书时
@@ -268,7 +270,7 @@ async def on_cluster_enable(sid, data: dict, *args):
             }
         ]
     else:
-        logger.debug(f"{cluster.id} 测速失败: {bandwidth[1]}")
+        logger.debug(f"节点 {cluster.id} 测速失败: {bandwidth[1]}")
         return [{"message": f"错误: {bandwidth[1]}"}]
 
 
